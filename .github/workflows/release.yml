@@ -1,0 +1,32 @@
+name: Release
+
+on:
+    workflow_dispatch:
+
+permissions:
+    contents: read
+    packages: write
+
+env:
+    LOCAL_IMAGE_NAME: localhost/clarity-dashboard
+
+jobs:
+    release:
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
+
+            - name: Build image
+              run: |
+                  podman build -t "${{ env.LOCAL_IMAGE_NAME }}" .
+
+            - name: Log in to GHCR
+              uses: redhat-actions/podman-login@v1
+              with:
+                  registry: ghcr.io
+                  username: ${{ github.actor }}
+                  password: ${{ secrets.GITHUB_TOKEN }}
+
+            - name: Push image
+              run: |
+                  podman push "${{ env.LOCAL_IMAGE_NAME }}" "ghcr.io/${{ github.repository }}:latest"
