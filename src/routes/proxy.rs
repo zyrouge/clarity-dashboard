@@ -42,5 +42,16 @@ pub async fn proxy(params: Query<ProxyParams>) -> Response {
     let status = response.status();
     let stream = response.bytes_stream();
     let body = Body::from_stream(stream);
-    Response::builder().status(status).body(body).unwrap()
+    let mut builder = Response::builder();
+    builder.status(status);
+    copy_headers(response.headers(), builder.headers_mut().unwrap(), &["content-length", "cache-control", "expires"]);
+    builder.body(body).unwrap().into_response()
+}
+
+fn copy_headers(from: &reqwest::header::HeaderMap, to: &mut axum::http::HeaderMap, headers_to_copy: &[&str]) {
+    for &header_name in headers_to_copy {
+        if let Some(value) = from.get(header_name) {
+            to.insert(header_name, value.clone());
+        }
+    }
 }
