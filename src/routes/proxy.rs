@@ -20,7 +20,20 @@ pub async fn proxy(params: Query<ProxyParams>) -> Response {
         return (StatusCode::BAD_REQUEST, "invalid data").into_response();
     }
     let config = Config::get();
-    if !config.proxy.allowed_urls.contains(url) {
+    let parsed_url = match reqwest::Url::parse(url) {
+        Ok(u) => u,
+        Err(e) => {
+            tracing::warn!(error = %e, "failed to parse url");
+            return (StatusCode::BAD_REQUEST, "invalid data").into_response();
+        }
+    };
+    let partial_url = format!(
+        "{}://{}{}",
+        parsed_url.scheme(),
+        parsed_url.authority(),
+        parsed_url.path()
+    );
+    if !config.proxy.allowed_urls.contains(&partial_url) {
         tracing::warn!("proxy request with disallowed url: {}", url);
         return (StatusCode::FORBIDDEN, "invalid data").into_response();
     }
@@ -45,14 +58,28 @@ pub async fn proxy(params: Query<ProxyParams>) -> Response {
     let body = Body::from_stream(stream);
     let mut builder = Response::builder().status(status);
     let headers = builder.headers_mut().unwrap();
-    copy_headers(&incoming_headers, headers, &["content-length".to_string(), "cache-control".to_string(), "expires".to_string()]);
+    copy_headers(
+        &incoming_headers,
+        headers,
+        &[
+            "content-length".to_string(),
+            "cache-control".to_string(),
+            "expires".to_string(),
+        ],
+    );
     builder.body(body).unwrap().into_response()
 }
 
-fn copy_headers(from: &reqwest::header::HeaderMap, to: &mut axum::http::HeaderMap, headers_to_copy: &[String]) {
+fn copy_headers(
+    from: &reqwest::header::HeaderMap,
+    to: &mut axum::http::HeaderMap,
+    headers_to_copy: &[String],
+) {
     for header_name in headers_to_copy {
-        if let Some(value) = from.get(header_name) {
-            to.insert(header_name, value.clone());
+        if let Ok(name) = header_name.parse::<axum::http::header::HeaderName>() {
+            if let Some(value) = from.get(&name) {
+                to.insert(name, value.clone());
+            }
         }
     }
 }
