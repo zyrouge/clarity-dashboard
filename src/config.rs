@@ -1,5 +1,5 @@
 use std::env;
-use std::sync::{LazyLock};
+use std::sync::LazyLock;
 
 use serde::Deserialize;
 
@@ -28,7 +28,7 @@ pub struct PagesConfig {
 }
 
 static CONFIG: LazyLock<&'static Config> = LazyLock::new(|| {
-    let path = env::var("CONFIG_PATH").unwrap_or_else(|_| "config.toml".to_string());
+    let path = env::var("CONFIG_FILE").unwrap_or_else(|_| "config.toml".to_string());
     let config = Config::from_file(&path).expect("failed to load config");
     Box::leak(Box::new(config))
 });
