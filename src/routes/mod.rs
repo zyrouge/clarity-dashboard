@@ -1,4 +1,7 @@
-use axum::{Router, routing::get};
+use axum::{
+    Router,
+    routing::{any, get},
+};
 
 use crate::routes::pages::pages_router;
 
@@ -9,6 +12,6 @@ mod proxy;
 pub fn router() -> Router {
     Router::new()
         .route("/api/ping", get(ping::ping))
-        .route("/api/proxy", get(proxy::proxy))
+        .route("/api/proxy", any(proxy::proxy_any))
         .fallback_service(pages_router())
 }
